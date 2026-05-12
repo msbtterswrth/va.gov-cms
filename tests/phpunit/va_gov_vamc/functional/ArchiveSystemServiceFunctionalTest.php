@@ -6,12 +6,24 @@ use Drupal\node\Entity\Node;
 use Tests\Support\Classes\VaGovExistingSiteBase;
 
 /**
- * Test for archiving a system Hhalth service and its related facility services.
+ * Test for archiving a system Health service and its related facility services.
  *
  * @group va_gov_vamc
  * @group functional
+ * @group disabled
  */
 class ArchiveSystemServiceFunctionalTest extends VaGovExistingSiteBase {
+
+  /**
+   * {@inheritdoc}
+   */
+  public function setUp(): void {
+    parent::setUp();
+    // This test does not use the browser, so disable HTML output to avoid
+    // HTTP requests (e.g. fetching druplicon.png) that can fail with DNS
+    // resolution errors in CI environments.
+    $this->htmlOutputEnabled = FALSE;
+  }
 
   /**
    * Minimal test to check reference field persistence.

@@ -256,7 +256,8 @@ class VAMCEntityEventSubscriber implements EventSubscriberInterface {
       }
     }
 
-    $this->archiveFacilityServices($entity);
+    $this->archiveFacilityServicesIfSystemServiceIsArchived($entity);
+    $this->archiveSystemServiceIfLastFacilityService($entity);
   }
 
   /**
@@ -559,7 +560,7 @@ class VAMCEntityEventSubscriber implements EventSubscriberInterface {
     }
     catch (InvalidPluginDefinitionException | PluginNotFoundException $e) {
       $this->loggerFactory->get('va_gov_vamc')
-        ->error('Failed to confirm archiving facility health service: @message',
+        ->error('Failed to confirm archiving system health service: @message',
           ['@message' => $e->getMessage()]
         );
     }
@@ -577,6 +578,16 @@ class VAMCEntityEventSubscriber implements EventSubscriberInterface {
     $is_admin = $this->userPermsService->hasAdminRole(TRUE);
     if (!$is_admin) {
       $this->disableFacilityServiceChange($form, $form_state);
+    }
+
+    try {
+      $form = $this->confirmArchive($form_state, $form);
+    }
+    catch (InvalidPluginDefinitionException | PluginNotFoundException $e) {
+      $this->loggerFactory->get('va_gov_vamc')
+        ->error('Failed to confirm archiving facility health service: @message',
+          ['@message' => $e->getMessage()]
+        );
     }
   }
 
@@ -629,7 +640,7 @@ class VAMCEntityEventSubscriber implements EventSubscriberInterface {
    * @throws \Drupal\Component\Plugin\Exception\PluginNotFoundException
    * @throws \Drupal\Core\Entity\EntityStorageException
    */
-  public function archiveFacilityServices(EntityInterface $entity): void {
+  public function archiveFacilityServicesIfSystemServiceIsArchived(EntityInterface $entity): void {
     if (
       $entity instanceof NodeInterface &&
       $entity->bundle() === 'regional_health_care_service_des' &&
@@ -639,26 +650,18 @@ class VAMCEntityEventSubscriber implements EventSubscriberInterface {
     ) {
       // Only run if the previous state was not already archived.
       $original = $entity->original ?? NULL;
-      $was_archived = $original && $original->hasField('moderation_state') && $original->get('moderation_state')->value === 'archived';
-      if (!$was_archived) {
-        $facility_storage = $this->entityTypeManager->getStorage('node');
-        $facility_nids = $facility_storage->getQuery()
-          ->condition('type', 'health_care_local_health_service')
-          ->condition('status', 1)
-          ->condition('field_regional_health_service', $entity->id())
-          ->accessCheck(FALSE)
-          ->execute();
+      $was_already_archived = $original && $original->hasField('moderation_state') && $original->get('moderation_state')->value === 'archived';
+      if (!$was_already_archived) {
+        $facility_nids = $this->getFacilityServiceNids($entity);
         if (!empty($facility_nids)) {
+          $facility_storage = $this->entityTypeManager->getStorage('node');
           $facility_nodes = $facility_storage->loadMultiple($facility_nids);
           foreach ($facility_nodes as $facility_node) {
             try {
-              if ($facility_node->hasField('moderation_state')) {
-                $facility_node->set('moderation_state', 'archived');
-              }
-              $facility_node->setUnpublished();
-              $facility_node->setNewRevision(TRUE);
-              $facility_node->setRevisionLogMessage($this->t('Automatically archived when parent system service was archived.'));
-              $facility_node->save();
+              $this->archiveNode(
+                $facility_node,
+                $this->t('Automatically archived when parent system service was archived.')
+              );
             }
             catch (InvalidPluginDefinitionException | PluginNotFoundException | EntityStorageException $e) {
               $this->loggerFactory->get('va_gov_vamc')->error('Failed to archive facility health service node with ID @nid: @message', [
@@ -670,6 +673,67 @@ class VAMCEntityEventSubscriber implements EventSubscriberInterface {
         }
       }
     }
+  }
+
+  /**
+   * Archives the system service if this is the last facility service archived.
+   *
+   * @param \Drupal\node\NodeInterface $facility_service
+   *   The facility service node being archived.
+   */
+  protected function archiveSystemServiceIfLastFacilityService(EntityInterface $facility_service): void {
+    if (
+      !$facility_service instanceof NodeInterface ||
+      $facility_service->bundle() !== 'health_care_local_health_service' ||
+      !$facility_service->hasField('field_regional_health_service')
+    ) {
+      return;
+    }
+    $original = $facility_service->original ?? NULL;
+    $was_already_archived = $original && $original->hasField('moderation_state') && $original->get('moderation_state')->value === 'archived';
+    if ($was_already_archived) {
+      return;
+    }
+    // Get the parent system service node.
+    $system_service = $facility_service->get('field_regional_health_service')->entity ?? NULL;
+    if (!$system_service || !$system_service->hasField('moderation_state')) {
+      return;
+    }
+
+    if ($this->isLastFacilityService($facility_service)) {
+      $message = $this->t('Automatically archived when last related facility service was archived.');
+      $this->archiveNode($system_service, $message);
+    }
+  }
+
+  /**
+   * Checks if the facility is the last published under its parent system.
+   *
+   * @param \Drupal\Core\Entity\EntityInterface $entity
+   *   The Facility Service Node.
+   *
+   * @return bool
+   *   Whether this is the last published facility service.
+   */
+  protected function isLastFacilityService(EntityInterface $entity): bool {
+    if (
+      $entity instanceof NodeInterface &&
+      $entity->bundle() === 'health_care_local_health_service'
+    ) {
+      $system_service = $entity->get('field_regional_health_service')->entity;
+      if ($system_service) {
+        $facility_storage = $this->entityTypeManager->getStorage('node');
+        $published_facility_services = $facility_storage->getQuery()
+          ->condition('type', 'health_care_local_health_service')
+          ->condition('status', 1)
+          ->condition('field_regional_health_service', $system_service->id())
+          ->accessCheck(FALSE)
+          ->execute();
+        $remaining = array_diff($published_facility_services, [$entity->id()]);
+        return empty($remaining);
+      }
+    }
+    return FALSE;
   }
 
   /**
@@ -692,25 +756,28 @@ class VAMCEntityEventSubscriber implements EventSubscriberInterface {
       /** @var \Drupal\node\NodeInterface $node */
       $node = $form_object->getEntity();
       if ($node instanceof NodeInterface && !$node->isNew()) {
-        $facility_count = $this->entityTypeManager->getStorage('node')
-          ->getQuery()
-          ->condition('type', 'health_care_local_health_service')
-          ->condition('status', 1)
-          ->condition('field_regional_health_service', $node->id())
-          ->accessCheck(FALSE)
-          ->count()
-          ->execute();
-
-        if ($facility_count > 0) {
-          // Attach the archive_confirm JS library.
-          $form['#attached']['library'][] = 'va_gov_vamc/archive_confirm';
-          // Build the confirmation message.
-          $archive_message = $this->t('There are @count published VAMC Facility health services associated to this System health service. By saving this System service as archived, all the associated Facility health services will be automatically archived as well.', ['@count' => $facility_count]);
-          // Pass data to JS via drupalSettings.
-          $form['#attached']['drupalSettings']['va_gov_vamc']['archiveConfirm'] = [
-            'facilityCount' => $facility_count,
-            'message' => $archive_message,
-          ];
+        if ($node->bundle() === 'regional_health_care_service_des') {
+          $facility_count = count($this->getFacilityServiceNids($node, TRUE));
+          if ($facility_count > 0) {
+            $form['#attached']['library'][] = 'va_gov_vamc/archive_confirm';
+            $archive_message = $this->buildArchiveConfirmationMessage(TRUE, $facility_count);
+            $form['#attached']['drupalSettings']['va_gov_vamc']['archiveConfirm'] = [
+              'facilityCount' => $facility_count,
+              'message' => $archive_message,
+            ];
+          }
+        }
+        elseif ($node->bundle() === 'health_care_local_health_service') {
+          if ($this->isLastFacilityService($node)) {
+            $form['#attached']['library'][] = 'va_gov_vamc/archive_confirm';
+            $system_service = $node->get('field_regional_health_service')->entity;
+            $system_title = $system_service ? $system_service->label() : $this->t('the parent system service');
+            $archive_message = $this->buildArchiveConfirmationMessage(FALSE, 1, $system_title);
+            $form['#attached']['drupalSettings']['va_gov_vamc']['archiveConfirm'] = [
+              'facilityCount' => 1,
+              'message' => $archive_message,
+            ];
+          }
         }
       }
     }
@@ -818,6 +885,80 @@ class VAMCEntityEventSubscriber implements EventSubscriberInterface {
 
       $entity->set($field, NULL);
     }
+  }
+
+  /**
+   * Get related Facility Service node IDs for a System Service node.
+   *
+   * @param \Drupal\Core\Entity\EntityInterface $system_service
+   *   The System Service node.
+   * @param bool $published_only
+   *   If TRUE, only return published Facility Services. If FALSE, return all.
+   *
+   * @return int[]
+   *   Array of related Facility Service node IDs.
+   */
+  private function getFacilityServiceNids(EntityInterface $system_service, bool $published_only = FALSE): array {
+    if ($system_service instanceof NodeInterface && $system_service->bundle() === 'regional_health_care_service_des') {
+      $facility_storage = $this->entityTypeManager->getStorage('node');
+      $query = $facility_storage->getQuery()
+        ->condition('type', 'health_care_local_health_service')
+        ->condition('field_regional_health_service', $system_service->id())
+        ->accessCheck(FALSE);
+      if ($published_only) {
+        $query->condition('status', 1);
+      }
+      return $query->execute();
+    }
+    return [];
+  }
+
+  /**
+   * Archive a node (set moderation_state to archived and unpublish).
+   *
+   * @param \Drupal\Core\Entity\EntityInterface $node
+   *   The node entity.
+   * @param string $log_message
+   *   Revision log message.
+   */
+  private function archiveNode(EntityInterface $node, string $log_message = ''): void {
+    if ($node instanceof NodeInterface && $node->hasField('moderation_state')) {
+      // Prevent re-archiving and unnecessary saves if already archived.
+      if ($node->get('moderation_state')->value === 'archived') {
+        return;
+      }
+      $node->set('moderation_state', 'archived');
+      $node->setUnpublished();
+      $node->setNewRevision(TRUE);
+      $node->setRevisionUserId($this->currentUser->id());
+      if ($log_message) {
+        $node->setRevisionLogMessage($log_message);
+      }
+      $node->save();
+    }
+  }
+
+  /**
+   * Build archive confirmation message for System or Facility Service.
+   *
+   * @param bool $is_system
+   *   Whether this is a system health service node.
+   * @param int $count
+   *   Number of related facility services.
+   * @param string|null $system_title
+   *   System title (for facility message).
+   *
+   * @return string
+   *   The confirmation message.
+   */
+  private function buildArchiveConfirmationMessage(bool $is_system, int $count, ?string $system_title = NULL): string {
+    if ($is_system) {
+      return $this->t('There are @count published VAMC Facility health services associated to this System health service. By saving this System service as archived, all the associated Facility health services will be automatically archived as well.', ['@count' => $count]);
+    }
+    elseif ($system_title) {
+      return $this->t('This is the last published Facility health service for @system_title in the VAMC system. By saving this Facility service as archived, the associated System health service will be automatically archived as well. By saving, you are confirming that this service is no longer available anywhere within the system.', ['@system_title' => $system_title]);
+    }
+    return '';
   }
 
 }
