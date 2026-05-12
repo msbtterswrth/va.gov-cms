@@ -5,7 +5,7 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
 source ~/.bashrc
 
-# Installs the content-build dependencies.
+# Installs the next-build dependencies.
 
 if [ ! -d next/src ]; then
   git clone --filter=tree:0 https://github.com/department-of-veterans-affairs/next-build.git next

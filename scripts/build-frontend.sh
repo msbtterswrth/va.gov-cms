@@ -24,6 +24,8 @@ fi
 # For convenience.
 cd $reporoot
 
+content_build_root="${reporoot}/web"
+
 # Make sure that we're ready to start a build.
 releasestate=$(drush va-gov:content-release:get-state | grep -c 'dispatched')
 if [ "$releasestate" -ne 1 ]; then
@@ -71,7 +73,7 @@ composer install --no-scripts &>> ${logfile}
 # Get the requested content-build version
 if [ "${content_build_version}" != "__default" ]; then
   echo "==> Checking out the requested frontend version" >> ${logfile}
-  pushd ${reporoot}/docroot/vendor/va-gov/content-build
+  pushd ${content_build_root}
   if echo "${content_build_version}" | grep -qE '^[0-9]+$' > /dev/null; then
     echo "==> Checking out PR #${content_build_version}"
     git fetch origin pull/${content_build_version}/head &>> ${logfile}
@@ -92,7 +94,7 @@ composer va:web:install &>> ${logfile}
 # Get the requested vets-website version
 if [ "${vets_website_version}" != "__default" ]; then
   echo "==> Checking out the requested vets-website version" >> ${logfile}
-  pushd ${reporoot}/docroot/vendor/va-gov/vets-website
+  pushd ${reporoot}/vets-website
   if echo "$vets_website_version" | grep -qE '^[0-9]+$' > /dev/null; then
     echo "==> Checking out PR #${vets_website_version}"
     git fetch origin pull/${vets_website_version}/head &>> ${logfile}
@@ -114,7 +116,7 @@ composer va:web:build &>> ${logfile}
 # We need to install & build vets-website at the chosen branch
 # and then copy it to our output location.
 echo "==> Installing and building vets-website" >> ${logfile}
-pushd ${reporoot}/docroot/vendor/va-gov/vets-website
+pushd ${reporoot}/vets-website
 nvm install  &>> ${logfile}
 nvm use  &>> ${logfile}
 yarn install-safe  &>> ${logfile}
@@ -130,12 +132,12 @@ find \
 echo "Copy built files to content-build." >> ${logfile}
 shopt -s nullglob
 # Ensure the destination directories exist.
-mkdir -p /var/lib/tugboat/docroot/vendor/va-gov/content-build/build/vagovdev/generated/
-mkdir -p /var/lib/tugboat/docroot/vendor/va-gov/content-build/build/vagovdev/fonts/
+mkdir -p ${content_build_root}/build/vagovdev/generated/
+mkdir -p ${content_build_root}/build/vagovdev/fonts/
 # Copy the built files.
-cp -rf build/vagovdev/generated/* /var/lib/tugboat/docroot/vendor/va-gov/content-build/build/vagovdev/generated/ &>> ${logfile}
-cp -rf build/vagovdev/generated/*.ttf /var/lib/tugboat/docroot/vendor/va-gov/content-build/build/vagovdev/fonts/ &>> ${logfile}
-cp -rf build/vagovdev/generated/*.woff2 /var/lib/tugboat/docroot/vendor/va-gov/content-build/build/vagovdev/fonts/ &>> ${logfile}
+cp -rf build/vagovdev/generated/* ${content_build_root}/build/vagovdev/generated/ &>> ${logfile}
+cp -rf build/vagovdev/generated/*.ttf ${content_build_root}/build/vagovdev/fonts/ &>> ${logfile}
+cp -rf build/vagovdev/generated/*.woff2 ${content_build_root}/build/vagovdev/fonts/ &>> ${logfile}
 shopt -u nullglob
 popd
 echo "Finished installing and building vets-website" >> ${logfile}
@@ -151,7 +153,7 @@ drush va-gov:content-release:advance-state ready
 set +e
 
 echo "==> Broken link report" >> ${logfile}
-broken_links_path="${reporoot}/docroot/vendor/va-gov/content-build/logs/vagovdev-broken-links.json"
+broken_links_path="${content_build_root}/logs/vagovdev-broken-links.json"
 cat "${broken_links_path}" | jq >> ${logfile}
 
 echo "==> List heading order violations" >> ${logfile}

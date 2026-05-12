@@ -92,7 +92,7 @@ $is_pull_request = $tugboat_preview_type === 'pullrequest';
 
 // Settings supporting broken link report import.
 $settings['broken_link_report_import_enabled'] = TRUE;
-$settings['broken_link_report_location'] = '/var/lib/tugboat/docroot/vendor/va-gov/content-build/logs/vagovdev-broken-links.json';
+$settings['broken_link_report_location'] = '/var/lib/tugboat/web/logs/vagovdev-broken-links.json';
 
 // Public asset S3 location
 $public_asset_s3_base_url = "https://dsva-vagov-staging-cms-files.s3.us-gov-west-1.amazonaws.com";

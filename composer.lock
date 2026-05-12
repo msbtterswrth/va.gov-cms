@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9cfab6278347fb9ff4aeec90c5d8dc2e",
+    "content-hash": "2de11ffb2c6b55c0a035f3f2371a92fb",
     "packages": [
         {
             "name": "asm89/stack-cors",
@@ -28657,48 +28657,6 @@
                 }
             ],
             "time": "2025-01-29T07:06:14+00:00"
-        },
-        {
-            "name": "va-gov/content-build",
-            "version": "v0.0.3957",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/department-of-veterans-affairs/content-build.git",
-                "reference": "472c9a47444515399277491b0d4c4927bcce2f0e"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/department-of-veterans-affairs/content-build/zipball/472c9a47444515399277491b0d4c4927bcce2f0e",
-                "reference": "472c9a47444515399277491b0d4c4927bcce2f0e",
-                "shasum": ""
-            },
-            "type": "node-project",
-            "extra": {
-                "installer-paths": {
-                    "web/": [
-                        "type:node-project"
-                    ]
-                },
-                "installer-types": [
-                    "node-project"
-                ]
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "CC0-1.0"
-            ],
-            "authors": [
-                {
-                    "name": "VA.gov Team",
-                    "homepage": "https://github.com/department-of-veterans-affairs/content-build/graphs/contributors"
-                }
-            ],
-            "description": "Front-end for VA.gov. This repository contains the code that generates the www.va.gov website. It contains a Metalsmith static site builder that uses a Drupal CMS for content. This file is here to publish releases to https://packagist.org/packages/va-gov/content-build, so that the CMS CI system can install it and update it using standard composer processes, and so that we can run tests across both systems. See https://github.com/department-of-veterans-affairs/va.gov-cms for the CMS repo, and stand by for more documentation.",
-            "support": {
-                "issues": "https://github.com/department-of-veterans-affairs/content-build/issues",
-                "source": "https://github.com/department-of-veterans-affairs/content-build/tree/v0.0.3957"
-            },
-            "time": "2026-05-08T23:07:35+00:00"
         },
         {
             "name": "vlucas/phpdotenv",

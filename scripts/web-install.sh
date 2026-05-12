@@ -7,28 +7,24 @@ source ~/.bashrc
 
 # Installs the content-build dependencies.
 
-repo_root="$(git rev-parse --show-toplevel)"
-pushd "${repo_root}" > /dev/null
+if [ ! -d web/src ]; then
+  git clone --filter=tree:0 https://github.com/department-of-veterans-affairs/content-build.git web
+else
+  echo "Repo content-build already cloned. Updating..."
+  git config --global --add safe.directory "$(pwd)/web"
+  git -C web reset --hard
+  git -C web pull origin $(git -C web rev-parse --abbrev-ref HEAD)
+fi
 
-pushd "./bin"
-ln -sf ../docroot/libraries/yarn/bin/yarn ./yarn
-popd
+pushd web
+
 nvm install
+nvm use
+corepack enable
+corepack prepare yarn@stable --activate
 echo "Node $(node -v)"
 echo "NPM $(npm -v)"
 echo "Yarn $(yarn -v)"
 
-./scripts/composer/check_yarn_version.sh
-
-pushd "./web"
-nvm install
-yarn run install-repos
-export NODE_EXTRA_CA_CERTS=/etc/pki/tls/certs/ca-bundle.crt
-if [[ "${BUILD_ENV}" == "eks" ]]; then
-  export NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
-fi
-export PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=TRUE
-yarn install
-popd
-
+yarn install-safe --immutable
 popd > /dev/null

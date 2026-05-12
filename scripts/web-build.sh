@@ -15,6 +15,7 @@ touch ./.buildlock
 build_type="vagovdev"
 web_path="./web"
 build_path="${web_path}/build/${build_type}"
+static_path="./docroot/static"
 rm -rf "${build_path}"
 
 pushd "${web_path}"
@@ -45,6 +46,9 @@ find \
   "${build_path}" \
   -type f \
   -exec sed -i -e "s#${dev_base_url}##g" {} \+;
+
+# Publish the latest frontend build where Tugboat's web-* vhost serves files.
+ln -snf "${repo_root}/${build_path}" "${static_path}"
 
 rm ./.buildlock
 
