@@ -26,9 +26,9 @@ dependencies:
     - geofield_map
     - markup
     - media_library
-    - office_hours
     - textfield_counter
     - tzfield
+    - va_gov_backend
 third_party_settings:
   field_group:
     group_governance:
@@ -199,7 +199,7 @@ content:
     settings: {  }
     third_party_settings: {  }
   field_office_hours:
-    type: office_hours_default
+    type: va_gov_office_hours_week_widget
     weight: 6
     region: content
     settings:

@@ -50,7 +50,6 @@ dependencies:
     - link
     - markup
     - media_library
-    - office_hours
     - paragraphs
     - paragraphs_features
     - telephone
@@ -617,7 +616,7 @@ content:
     settings: {  }
     third_party_settings: {  }
   field_office_hours:
-    type: office_hours_default
+    type: va_gov_office_hours_week_widget
     weight: 14
     region: content
     settings:

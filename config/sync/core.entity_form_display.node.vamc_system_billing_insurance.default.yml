@@ -23,8 +23,8 @@ dependencies:
     - content_moderation
     - entity_field_fetch
     - field_group
-    - office_hours
     - paragraphs
+    - va_gov_backend
     - viewfield
 third_party_settings:
   field_group:
@@ -234,7 +234,7 @@ content:
     settings: {  }
     third_party_settings: {  }
   field_office_hours:
-    type: office_hours_default
+    type: va_gov_office_hours_week_widget
     weight: 6
     region: content
     settings:

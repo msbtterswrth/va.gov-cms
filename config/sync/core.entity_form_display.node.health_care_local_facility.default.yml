@@ -35,12 +35,12 @@ dependencies:
     - field_group
     - geofield
     - media_library
-    - office_hours
     - paragraphs
     - path
     - telephone
     - textfield_counter
     - tzfield
+    - va_gov_backend
 third_party_settings:
   field_group:
     group_governance:
@@ -342,7 +342,7 @@ content:
       display_label: true
     third_party_settings: {  }
   field_office_hours:
-    type: office_hours_default
+    type: va_gov_office_hours_week_widget
     weight: 29
     region: content
     settings:

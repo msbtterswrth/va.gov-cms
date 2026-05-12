@@ -37,7 +37,6 @@ dependencies:
     - limited_field_widgets
     - markup
     - media_library
-    - office_hours
     - paragraphs
     - path
     - telephone
@@ -398,7 +397,7 @@ content:
       show_source_updated_date: 0
     third_party_settings: {  }
   field_office_hours:
-    type: office_hours_default
+    type: va_gov_office_hours_week_widget
     weight: 18
     region: content
     settings:
