@@ -38,7 +38,7 @@ jobs:
       IS_VALID: ${{ steps.select_tag.outputs.is_valid }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
         with:
           fetch-depth: 0  # Needed to list all tags for manual runs
           fetch-tags: true  # Ensure semver tags are available for selection
@@ -136,7 +136,7 @@ jobs:
           exit 1
       - name: Checkout tag ref
         if: steps.select_tag.outputs.is_valid == 'true'
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
         with:
           # Check out the exact tag so the Docker build context matches the release
           ref: refs/tags/${{ steps.select_tag.outputs.TAG_REF }}
